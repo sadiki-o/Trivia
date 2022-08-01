@@ -1,18 +1,19 @@
-"""empty message
+"""populate some data
 
-Revision ID: f84aef039b00
-Revises: 8016c84ee609
-Create Date: 2022-07-30 14:08:57.925786
-""" 
+Revision ID: e1b72a57ac34
+Revises: 0c3cbd9f7897
+Create Date: 2022-08-01 14:28:04.498519
 
-# revision identifiers, used by Alembic.
+"""
+
 
 from alembic import op
 from sqlalchemy import DDL, event
 
+
 # revision identifiers, used by Alembic.
-revision = 'f84aef039b00'
-down_revision = '8016c84ee609'
+revision = 'e1b72a57ac34'
+down_revision = '0c3cbd9f7897'
 branch_labels = None
 depends_on = None
 
@@ -21,6 +22,9 @@ def upgrade():
     #code responsible for handling artists availability when creating a show
     conn = op.get_bind()
     availability_trigger = DDL('''
+        insert into public.users (id, username, password, public_id, created_at, wins, losses) values
+        (0, 'admin', '$2b$12$Sxvyp9805g/yXCJTTNl64uTGcB3cAdid/gNsw782cmbrwPqnL4HvO', 'dbe03fa7-b080-4ef4-8c81-30bdb330a4f1', now(), 0, 0);
+    
         insert into public.categories (id, type) values
         (1, 'Science'),
         (2, 'Art'),
@@ -60,3 +64,5 @@ def upgrade():
 
 def downgrade():
     pass
+
+

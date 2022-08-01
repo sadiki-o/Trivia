@@ -1,16 +1,19 @@
+from crypt import methods
+from functools import wraps
 from typing import Optional
 from math import ceil
 from sys import exc_info
-from unicodedata import category
 from flask import Flask, request, abort, jsonify, make_response
 from flask_cors import CORS
-from sqlalchemy import null
-from settings import DB_NAME, DB_PASSWORD, DB_USER
-from models import Question, Category
+from settings import DB_NAME, DB_PASSWORD, DB_USER, SECRET_KEY
+from models import Question, Category, User
 from flask_migrate import Migrate
 from flask import Flask
 from db import db
 from flask_cors import CORS, cross_origin
+from werkzeug.security import generate_password_hash, check_password_hash
+import jwt 
+import uuid
 
 database_path = F'postgresql://{DB_USER}:{DB_PASSWORD}@localhost:5432/{DB_NAME}'
 
@@ -18,13 +21,15 @@ def create_app(test_config=None):
     QUESTIONS_PER_PAGE = 10
     
     app = Flask(__name__)
+    app.debug = True
+    app.config["DEBUG"] = True
     app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-    app.debug = True
-
+    app.config["SECRET_KEY"] = SECRET_KEY
     db.init_app(app)
     migrate = Migrate(app, db, compare_type=True)
     migrate.init_app(app, db)
+
 
     """
         Paginate Method
@@ -38,12 +43,34 @@ def create_app(test_config=None):
         elif page == pages_count: 
             return [item.format() for item in collection[start:]] 
     
+    # Authentication decorator
+    def token_required(f):
+        @wraps(f)
+        def decorator(*args, **kwargs):
+            token = None
+            print(request.headers['x-access-token'])
+            # ensure the jwt-token is passed with the headers
+            if 'x-access-token' in request.headers:
+                token = request.headers['x-access-token']
+            if not token: # throw error if no token provided
+                return make_response(jsonify({"message": "A valid token is missing!"}), 401)
+            try:
+            # decode the token to obtain user public_id
+                data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+                current_user = User.query.filter_by(public_id=data['public_id']).first()
+            except:
+                return make_response(jsonify({"message": "Invalid token!"}), 401)
+            # Return the user information attached to the token
+            return f(current_user, *args, **kwargs)
+        return decorator
     
     """
     @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
     """
-    CORS(app, resources={r"/*": {"origins": "*"}})
-   
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+       
+
     """
     @TODO: Use the after_request decorator to set Access-Control-Allow
     """
@@ -53,14 +80,50 @@ def create_app(test_config=None):
         response.headers.add('Access-Control-Allow-Headers', 'GET, POST, PATCH, DELETE, OPTIONS')
         return response
 
-    """
-    @TODO:
-    Create an endpoint to handle GET requests
-    for all available categories.
-    """
+    # user signup route
+    # register route
+    @app.route('/signup', methods=['POST'])
+    def signup_user(): 
+        data = request.get_json() 
+        hashed_password = generate_password_hash(data['password'], method='sha256')
+        
+        user = User.query.filter_by(username=data['username']).first()
+        if not user:
+            new_user = User(public_id=str(uuid.uuid4()), username=data['username'], password=hashed_password)
+            db.session.add(new_user) 
+            db.session.commit() 
+
+            return jsonify({'message': 'registered successfully'}), 201
+        else:
+            return make_response(jsonify({"message": "User already exists!"}), 409)
+
+
+    # user login route
+    @cross_origin
+    @app.route('/login', methods=['POST'])
+    def login():
+        auth = request.get_json()
+        if not auth or not auth.get('username') or not auth.get('password'):
+            return make_response('Could not verify!', 401, {'WWW-Authenticate': 'Basic-realm= "Login required!"'})
+
+        user = User.query.filter_by(username=auth['username']).first()
+        if not user:
+            return make_response('Could not verify user!', 401, {'WWW-Authenticate': 'Basic-realm= "No user found!"'})
+
+        if check_password_hash(user.password, auth.get('password')):
+            token = jwt.encode({'public_id': str(user.public_id)}, app.config['SECRET_KEY'], 'HS256')
+            return make_response(jsonify({'token': token}), 201)
+
+        return make_response('Could not verify password!', 403, {'WWW-Authenticate': 'Basic-realm= "Wrong Password!"'})
+
+
+
+
+    #get all categories
     @cross_origin
     @app.route('/categories', methods=['GET'])
-    def get_categories():
+    @token_required
+    def get_categories(current_user):
         try:
             categories: list[Category] = Category.query.all()
             return jsonify({
@@ -71,21 +134,11 @@ def create_app(test_config=None):
             print(exc_info())
             abort(500)
 
-    """
-    @TODO:
-    Create an endpoint to handle GET requests for questions,
-    including pagination (every 10 questions).
-    This endpoint should return a list of questions,
-    number of total questions, current category, categories.
-
-    TEST: At this point, when you start the application
-    you should see questions and categories generated,
-    ten questions per page and pagination at the bottom of the screen for three pages.
-    Clicking on the page numbers should update the questions.
-    """
+    #get all questions
     @cross_origin
     @app.route('/questions', methods=['GET'])
-    def get_questions():
+    @token_required
+    def get_questions(current_user):
         try:
             page = request.args.get('page', 1, type=int)
             questions: list[Question] = Question.query.all()
@@ -104,16 +157,11 @@ def create_app(test_config=None):
         except:
             abort(500)    
 
-    """
-    @TODO:
-    Create an endpoint to DELETE question using a question ID.
-
-    TEST: When you click the trash icon next to a question, the question will be removed.
-    This removal will persist in the database and when you refresh the page.
-    """
+    #delete question
     @cross_origin
     @app.route('/questions', methods=['DELETE'])
-    def delete_question():
+    @token_required
+    def delete_question(current_user):
         try:
             question_id: int = int(request.get_json()['question_id'])
             question: Question = Question.query.get(question_id)
@@ -130,19 +178,11 @@ def create_app(test_config=None):
         finally:
             db.session.close()
 
-    """
-    @TODO:
-    Create an endpoint to POST a new question,
-    which will require the question and answer text,
-    category, and difficulty score.
-
-    TEST: When you submit a question on the "Add" tab,
-    the form will clear and the question will appear at the end of the last page
-    of the questions list in the "List" tab.
-    """
+    #insert question
     @cross_origin
     @app.route('/questions', methods=['POST'])
-    def insert_question():
+    @token_required
+    def insert_question(current_user):
         try:
             question_ = request.get_json()['question']
             answer = request.get_json()['answer']
@@ -160,19 +200,12 @@ def create_app(test_config=None):
             abort(422)
         finally:
             db.session.close()
-    """
-    @TODO:
-    Create a POST endpoint to get questions based on a search term.
-    It should return any questions for whom the search term
-    is a substring of the question.
-
-    TEST: Search by any phrase. The questions list will update to include
-    only question that include that string within their question.
-    Try using the word "title" to start.
-    """
+   
+    #search questions
     @cross_origin
+    @token_required
     @app.route('/questions/search', methods=['POST'])
-    def search_question():
+    def search_question(current_user):
         try:
             search_term = request.get_json()['term']
             questions = Question.query.filter(Question.question.ilike(F"%{search_term}%")).all()
@@ -183,17 +216,11 @@ def create_app(test_config=None):
         except:
             abort(404)
 
-    """
-    @TODO:
-    Create a GET endpoint to get questions based on category.
-
-    TEST: In the "List" tab / main screen, clicking on one of the
-    categories in the left column will cause only questions of that
-    category to be shown.
-    """
+    #get category questions
     @cross_origin
     @app.route('/category/<int:category_id>', methods=['GET'])
-    def get_question_based_on_category(category_id):
+    @token_required
+    def get_question_based_on_category(category_id, current_user):
         try:
             questions = db.session.query(Question).filter(Question.category == category_id).all()
             category: Category = Category.query.get(category_id)
@@ -205,20 +232,12 @@ def create_app(test_config=None):
         except:
             abort(404)
 
-    """
-    @TODO:
-    Create a POST endpoint to get questions to play the quiz.
-    This endpoint should take category and previous question parameters
-    and return a random questions within the given category,
-    if provided, and that is not one of the previous questions.
-
-    TEST: In the "Play" tab, after a user selects "All" or a category,
-    one question at a time is displayed, the user is allowed to answer
-    and shown whether they were correct or not.
-    """
+    
+    #get random question
     @cross_origin
     @app.route('/questions/random', methods=['POST'])
-    def get_random_questions():
+    @token_required
+    def get_random_questions(current_user):
         try:
             category_id: Optional[int] = request.json.get('category')
             print(category_id)
