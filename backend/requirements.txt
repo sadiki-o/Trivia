@@ -1,9 +1,10 @@
 Flask
 Flask-Cors
 Flask-SQLAlchemy
-flask_migrate
-pyjwt
+Flask-Migrate
 psycopg2
 SQLAlchemy
 python-dotenv
 uuid
+werkzeug
+PyJWT

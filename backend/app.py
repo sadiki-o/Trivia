@@ -15,6 +15,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import jwt 
 import uuid
 
+
 database_path = F'postgresql://{DB_USER}:{DB_PASSWORD}@localhost:5432/{DB_NAME}'
 
 def create_app(test_config=None):
@@ -79,6 +80,23 @@ def create_app(test_config=None):
         response.headers.add('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         response.headers.add('Access-Control-Allow-Headers', 'GET, POST, PATCH, DELETE, OPTIONS')
         return response
+
+    #verify token route
+    @cross_origin
+    @app.route('/verify', methods=['POST'])
+    def verify_token():
+        token = None
+        if 'x-access-token' in request.headers:
+            token = request.headers['x-access-token']
+        if not token: # throw error if no token provided
+            return make_response(jsonify({"message": "A valid token is missing!"}), 401)
+        try:
+        # decode the token to obtain user public_id
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=['HS256'])
+            current_user: User = User.query.filter_by(public_id=data['public_id']).first()
+            return jsonify(current_user.format())
+        except:
+            return make_response(jsonify({"message": "Invalid token!"}), 401)
 
     # user signup route
     # register route
