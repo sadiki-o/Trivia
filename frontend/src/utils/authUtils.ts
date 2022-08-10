@@ -1,6 +1,13 @@
-import axios from "axios";
+import axios, { AxiosResponse } from "axios";
 
 const url_path = import.meta.env.VITE_API_URL
+
+export type TUser = {
+    id: number
+    username: string
+    wins: number
+    losses: number
+}
 
 type TCredentials = {
     username: string;
@@ -8,15 +15,19 @@ type TCredentials = {
 }
 
 type TResponse = {
-    errorMessage: string | null ;
-    success: boolean ;
+    errorMessage: string | null;
+    success: boolean;
+    user: TUser | null
 }
 
 
-export const LoginFunc = async ({username, password}: TCredentials): Promise<TResponse> => {
+// Authentication functions
+
+export const LoginFunc = async ({ username, password }: TCredentials): Promise<TResponse> => {
     let result: TResponse = {
         errorMessage: null,
-        success: false
+        success: false,
+        user: null
     }
     await axios.post(
         `${url_path}/login`,
@@ -25,21 +36,23 @@ export const LoginFunc = async ({username, password}: TCredentials): Promise<TRe
             password
         }
     )
-    .then((response) => {
-        localStorage.setItem('token', response.data['token'])
-        result.success = true
-    })
-    .catch((err) => {
-        result.errorMessage = err.response.data;
-    })
-    window.location.href = '/'
+        .then((response) => {
+            localStorage.setItem('token', response.data['token'])
+            result.success = true
+            result.user = response.data['user']
+        })
+        .catch((err) => {
+            result.errorMessage = err.response.data;
+        })
+
     return result
 }
 
-export const SignupFunc = async ({username, password}: TCredentials): Promise<TResponse>  => {
+export const SignupFunc = async ({ username, password }: TCredentials): Promise<TResponse> => {
     let res: TResponse = {
         errorMessage: null,
-        success: false
+        success: false,
+        user: null
     }
 
     await axios.post(
@@ -49,35 +62,37 @@ export const SignupFunc = async ({username, password}: TCredentials): Promise<TR
             password
         }
     )
-    .then((response) => {
-        res.success = true
-    })
-    .catch((err) => {
-        res.errorMessage = err.response.data.message;
-    })
+        .then((response) => {
+            res.success = true
+        })
+        .catch((err) => {
+            res.errorMessage = err.response.data.message;
+        })
 
     return res;
 }
 
-export const checkAuth = async (): Promise<boolean> => {
+export const checkAuth = async (): Promise<TUser | null> => {
+    let user: TUser | null = null;
     let token: string = localStorage.getItem('token')!
-    var config = {
+
+    const config = {
         method: 'post',
         url: `${url_path}/verify`,
         headers: {
             'x-access-token': token
         }
     };
-    let success: boolean = false;
+
     await axios(config)
-    .then((response) => {
-        success = true
-    })
-    
-    return success
+        .then((response) => {
+            user = response.data['user']
+        })
+    return user
 }
 
 export const logOut = () => {
     localStorage.removeItem('token')
-    window.location.href = '/login'
 }
+
+

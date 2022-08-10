@@ -4,9 +4,9 @@ import { SignupFunc } from '../utils/authUtils'
 
 const Signup: FC = () => {
     const errorRef = useRef<HTMLHeadingElement>(null)
-    const [username, setUsername] = useState('')
-    const [password, setPassword] = useState('')
-    const [confirmPassword, setConfirmPassword] = useState('')
+    const [username, setUsername] = useState<string>('')
+    const [password, setPassword] = useState<string>('')
+    const [confirmPassword, setConfirmPassword] = useState<string>('')
 
     const submitSignup = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -22,7 +22,11 @@ const Signup: FC = () => {
         if (!success){
             errorRef.current!.innerText! = errorMessage!
         }else{
+            errorRef.current!.innerText = ''
             alert('Account created successefully')
+            setUsername('')
+            setPassword('')
+            setConfirmPassword('')
         }
     }
 
@@ -30,7 +34,7 @@ const Signup: FC = () => {
         <div className="bg-grey-lighter min-h-screen flex flex-col">
             <div className="container max-w-sm mx-auto flex-1 flex flex-col items-center justify-center px-2 pb-40">
                 <form onSubmit={submitSignup} className="bg-white px-6 py-8 rounded shadow-md text-black w-full">
-                    <h1 className="mb-8 text-3xl text-center">Sign up</h1>
+                    <h1 className="mb-8 text-3xl text-center">Register</h1>
                     <h2 ref={errorRef} className="text-red-500 w-[80%]"></h2>
                     <input
                         onChange={(e) => {
@@ -69,10 +73,10 @@ const Signup: FC = () => {
 
                 <div className="text-gray-500 mt-6">
                     Already have an account? 
-                    <Link to='/login'>
-                        <a className="underline-none border-blue font-bold text-blue-700">
+                    <Link to='/signin'>
+                        <span className="underline-none border-blue font-bold text-blue-700">
                         &nbsp;Log in
-                        </a>
+                        </span>
                     </Link>
                 </div>
             </div>

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 0c3cbd9f7897
+Revision ID: 920c9566c1a7
 Revises: 
-Create Date: 2022-08-01 14:28:00.357094
+Create Date: 2022-08-08 14:34:53.084307
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '0c3cbd9f7897'
+revision = '920c9566c1a7'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -33,7 +33,7 @@ def upgrade():
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('type', sa.String(), nullable=True),
     sa.Column('ownership', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['ownership'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['ownership'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('questions',
@@ -43,16 +43,16 @@ def upgrade():
     sa.Column('difficulty', sa.Integer(), nullable=True),
     sa.Column('category', sa.Integer(), nullable=True),
     sa.Column('ownership', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['category'], ['categories.id'], ),
-    sa.ForeignKeyConstraint(['ownership'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['category'], ['categories.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['ownership'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('ratings',
     sa.Column('question', sa.Integer(), nullable=False),
     sa.Column('user', sa.Integer(), nullable=False),
     sa.Column('rating', sa.Integer(), nullable=True),
-    sa.ForeignKeyConstraint(['question'], ['questions.id'], ),
-    sa.ForeignKeyConstraint(['user'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['question'], ['questions.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['user'], ['users.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('question', 'user')
     )
     # ### end Alembic commands ###

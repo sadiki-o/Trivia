@@ -1,10 +1,12 @@
-import { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
-import { AuthContext } from '../../context/context';
+import { Outlet } from 'react-router-dom';
+import Home from '../Home';
+import { checkAuth } from '../../utils/authUtils';
+import { useEffect, useState } from 'react';
+import useStore from '../../zustandStore/store';
 
 
-export const PublicRoute = ({ children }: { children: JSX.Element }) => {
-    const appContext = useContext(AuthContext);
+export const PublicRoute = () => {
+    const auth = useStore((state) => state.isLoggedIn);
 
-    return !appContext ? children : <Navigate to="/" replace />;
+    return !auth ? <Outlet /> : <Home />;
 };

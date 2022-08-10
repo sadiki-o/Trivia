@@ -1,27 +1,34 @@
 import React, { FC, useState, useRef } from "react"
-import { Link, Navigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { LoginFunc } from "../utils/authUtils"
+import useStore from "../zustandStore/store"
+import { useNavigate } from "react-router-dom"
 
 const Login: FC = () => {
+    const setUser = useStore(state => state.setUser)
+    const setIsLoggedIn = useStore(state => state.setIsLoggedIn)
+    const navigate = useNavigate()
     const errorRef = useRef<HTMLHeadingElement>(null)
     const [username, setUsername] = useState('')
     const [password, setPassword] = useState('')
 
     const submitLogin = async (e: React.FormEvent) => {
         e.preventDefault()
-        const {errorMessage, success} = await LoginFunc({username, password})
+        const {errorMessage, success, user} = await LoginFunc({username, password})
         
         if (!success){
             errorRef.current!.innerText! = errorMessage!
         }else{
-            <Navigate to='/' replace/>
+            setUser(user!)
+            setIsLoggedIn(success)
+            navigate('/')
         }
     }
 
     return (
         <div className="container w-[80%] sm:w-[50%] max-w-[450px] rounded mx-auto p-4 bg-white mt-10">
             <div className="w-full  mx-auto my-12">
-                <h1 className="text-2xl font-medium text-center">Signin</h1>
+                <h1 className="text-2xl font-medium text-center">Login</h1>
                 <h2 ref={errorRef} className="text-red-500 w-[80%]"></h2>
                 <form onSubmit={submitLogin} className="flex flex-col mt-4">
                     <input
@@ -54,7 +61,7 @@ const Login: FC = () => {
                         <p className="mt-1 text-medium text-gray-500">
                             New to Here?
                             <Link className="ml-1 font-xl text-blue-700 font-bold" to='/signup'>
-                                Sign up now
+                                Register now
                             </Link>
                         </p>
                     </div>

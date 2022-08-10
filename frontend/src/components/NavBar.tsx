@@ -1,7 +1,8 @@
-import { FC, useContext} from 'react'
-import { Link } from 'react-router-dom';
-import { AuthContext } from '../context/context';
+import { FC, useState} from 'react'
+import { Link, useNavigate } from 'react-router-dom';
 import { logOut } from '../utils/authUtils';
+import useStore from '../zustandStore/store';
+
 
 interface TLink {
   name: string;
@@ -18,9 +19,16 @@ const NavLink: FC<TLink> = ({ name, url, auth }) => {
 }
 
 const NavBar: FC = () => {
-  const auth = useContext(AuthContext)
-  const Out = () => {
+  const auth = useStore((state) => state.isLoggedIn);
+  const setUser = useStore((state) => state.setUser);
+  const setIsLoggedIn = useStore((state) => state.setIsLoggedIn);
+  const navigate = useNavigate()
+
+  const LogOut = () => {
     logOut()
+    setUser(null)
+    setIsLoggedIn(false)
+    navigate('/signin')
   }
 
   return (
@@ -33,8 +41,8 @@ const NavBar: FC = () => {
         { auth 
         ? (
           <>
-            {[["List", "/"], ["Add", "/add"], ["Play", "/play"]].map((el, index) => <NavLink auth key={index} name={el[0]} url={el[1]} />)}
-            <button onClick={Out} className='bg-red-500 hover:bg-red-600 text-slate-100 p-1 rounded font-extrabold'>Logout</button>
+            {[["List", "/categories"], ["Add", "/add"], ["Play", "/play"]].map((el, index) => <NavLink auth key={index} name={el[0]} url={el[1]} />)}
+            <button onClick={LogOut} className='bg-red-500 hover:bg-red-600 text-slate-100 p-1 rounded font-extrabold'>Logout</button>
           </>
         )
           : [["Signin", "/signin"], ["Signup", "/signup"]].map((el, index) => <NavLink auth key={index} name={el[0]} url={el[1]} />) }
