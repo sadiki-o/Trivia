@@ -66,7 +66,7 @@ backend
 		|___d18ea280b54d_.py
 ```
 
-*Note :* the migrations folder holds two migrations, one for the models and one revision for configuring and populating data in the DB, you don't have to run `flask db migrate`   and `flask db upgrade`
+*Note :* the migrations folder holds two migrations, one for the models and one revision for configuring and populating data in the DB, you don't have to run `flask db migrate`   only run `flask db upgrade`
 
 
 
