@@ -9,7 +9,7 @@ export type TCategory = {
 export type TQuestion = {
     id?: number
     question: string
-    answer: string
+    answer?: string
     category: number
     difficulty: number,
     avg_rating?: number,
@@ -40,7 +40,7 @@ export const getCategories = async (): Promise<TCategory[]> => {
     return categories;
 }
 
-export const getQuestions = async (category: number, page: number): Promise<{
+export const getCategoryQuestions = async (category: number, page: number): Promise<{
     questions: TQuestion[],
     pagesCount: number
 }> => {
@@ -182,4 +182,109 @@ export const deleteCategory = async (category_id: number): Promise<boolean> => {
         })
 
     return res
+}
+
+
+export const getQuizzQuestions = async (category_id: number | null, previous: TQuestion[] | []): Promise<TQuestion[]> => {
+    let token: string = localStorage.getItem('token')!
+    let res: TQuestion[] | [] = [];
+    
+    if (category_id == -1) category_id = null
+    if(!previous) previous = []  
+
+    var config = {
+        method: 'post',
+        url: `${url_path}/questions/random`,
+        headers: {
+            'x-access-token': token,
+        },
+        data: {
+            category_id,
+            previous: [...previous.map(el => el.id)]
+        }
+    };
+    await axios(config)
+        .then((response) => {
+            res = response.data['questions']
+        })
+
+    return res
+}
+
+export const verifyAnswer = async (question_id: number , answer: string): Promise<boolean> => {
+    let token: string = localStorage.getItem('token')!
+    let res: boolean = false;
+    
+
+    var config = {
+        method: 'post',
+        url: `${url_path}/questions/verify`,
+        headers: {
+            'x-access-token': token,
+        },
+        data: {
+            question_id,
+            answer
+        }
+    };
+    await axios(config)
+        .then((response) => {
+            res = response.data['correct']
+        })
+
+    return res
+}
+
+export const getAllQuestions = async (page?: number): Promise<{
+    questions: TQuestion[],
+    pagesCount: number
+}> => {
+    let token: string = localStorage.getItem('token')!
+
+    let questions: TQuestion[] = [];
+    let pagesCount: number = 0;
+
+    var config = {
+        method: 'get',
+        url: `${url_path}/questions?page=${page ? page : 1}`,
+        headers: {
+            'x-access-token': token
+        }
+    };
+    await axios(config)
+        .then((response) => {
+            questions = response.data['questions']
+            
+            pagesCount = response.data['pages']
+        })
+
+    return {
+        questions,
+        pagesCount
+    }
+}
+
+export const searchQuestions = async (term: string): Promise<TQuestion[]> => {
+    let token: string = localStorage.getItem('token')!
+
+    let questions: TQuestion[] = [];
+
+    var config = {
+        method: 'post',
+        url: `${url_path}/questions/search`,
+        headers: {
+            'x-access-token': token
+        },
+        data: {
+            term
+        }
+    };
+    await axios(config)
+        .then((response) => {
+            questions = response.data['questions']
+            console.log(response.data['questions'])
+            
+        })
+
+    return questions
 }

@@ -1,4 +1,5 @@
 from functools import wraps
+import random
 from typing import Optional
 from math import ceil
 from sys import exc_info
@@ -15,12 +16,12 @@ import jwt
 import uuid
 
 
-
 database_path = F'postgresql://{DB_USER}:{DB_PASSWORD}@localhost:5432/{DB_NAME}'
 
 
 def create_app(test_config=None):
     QUESTIONS_PER_PAGE = 8
+    API_VERSION = 'v1.0'
 
     app = Flask(__name__)
     app.debug = True
@@ -38,7 +39,6 @@ def create_app(test_config=None):
     def paginate(collection: list, page: int, pages_count: int):
         start = (page - 1) * QUESTIONS_PER_PAGE
         end = start + QUESTIONS_PER_PAGE
-        print(page, start, end, sep="   ")
 
         if page < pages_count:
             return collection[start: end]
@@ -67,14 +67,8 @@ def create_app(test_config=None):
             return f(current_user, *args, **kwargs)
         return decorator
 
-    """
-    @TODO: Set up CORS. Allow '*' for origins. Delete the sample route after completing the TODOs
-    """
-    CORS(app, supports_credentials=True)
+    CORS(app, supports_credentials=True) # CORS set-up
 
-    """
-    @TODO: Use the after_request decorator to set Access-Control-Allow
-    """
     @app.after_request
     def after_request(response):
         response.headers.add('Access-Control-Allow-Headers',
@@ -86,7 +80,7 @@ def create_app(test_config=None):
     # verify token route
 
     @cross_origin
-    @app.route('/verify', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/verify', methods=['POST'])
     def verify_token():
         token = None
         if 'x-access-token' in request.headers:
@@ -103,9 +97,9 @@ def create_app(test_config=None):
         except:
             return make_response(jsonify({"message": "Invalid token!"}), 401)
 
+
     # user signup route
-    # register route
-    @app.route('/signup', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/signup', methods=['POST'])
     def signup_user():
         data = request.get_json()
         hashed_password = generate_password_hash(
@@ -122,11 +116,10 @@ def create_app(test_config=None):
         else:
             return make_response(jsonify({"message": "User already exists!"}), 409)
 
-    # user login route
-
+    # user signin route
     @cross_origin
-    @app.route('/login', methods=['POST'])
-    def login():
+    @app.route(F'/api/{API_VERSION}/signin', methods=['POST'])
+    def signin_user():
         auth = request.get_json()
         if not auth or not auth.get('username') or not auth.get('password'):
             return make_response('Could not verify!', 401, {'WWW-Authenticate': 'Basic-realm= "Login required!"'})
@@ -144,7 +137,7 @@ def create_app(test_config=None):
 
     # get all categories
     @cross_origin
-    @app.route('/categories', methods=['GET'])
+    @app.route(F'/api/{API_VERSION}/categories', methods=['GET'])
     @token_required
     def get_categories(current_user: User):
         try:
@@ -158,10 +151,9 @@ def create_app(test_config=None):
             print(exc_info())
             abort(500)
 
-
     # insert category
     @cross_origin
-    @app.route('/categories', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/categories', methods=['POST'])
     @token_required
     def insert_category(current_user: User):
         try:
@@ -183,7 +175,7 @@ def create_app(test_config=None):
 
     # delete category
     @cross_origin
-    @app.route('/categories', methods=['DELETE'])
+    @app.route(F'/api/{API_VERSION}/categories', methods=['DELETE'])
     @token_required
     def delete_category(current_user: User):
         try:
@@ -192,7 +184,9 @@ def create_app(test_config=None):
             category: Category = Category.query.get(category_id)
             if category.ownership != current_user.id:
                 abort(401)
-            category.delete()
+            if category is None:
+                abort(404)
+            db.engine.execute(F"delete from categories where id={category_id}")
             return jsonify({
                 "success": True,
                 "category": category.format()
@@ -206,42 +200,77 @@ def create_app(test_config=None):
 
     # get all questions
     @cross_origin
-    @app.route('/questions', methods=['GET'])
+    @app.route(F'/api/{API_VERSION}/questions', methods=['GET'])
     @token_required
     def get_questions(current_user: User):
         try:
             page = request.args.get('page', 1, type=int)
-            questions: list[Question] = Question.query.filter(
-                db.or_(Category.ownership == current_user.id, Category.ownership == 0)).all()
+            questions = db.engine.execute(F'''
+                select *
+                from (
+                    select q.id,
+                    q.question,
+                    q.answer,
+                    q.difficulty,
+                    q.category,
+                    q.ownership,
+                    r.rating
+                    from questions q 
+                    left join ratings r 
+                    on q.id = r.question 
+                    where (q.ownership = 0 or q.ownership = {current_user.id}) and (r."user" = {current_user.id} or r."user" is null)
+                    ) as t1
+                inner join (
+                    select q.id, coalesce(AVG(r.rating), 0)::float as avg_rating
+                    from questions q 
+                    left join ratings r 
+                    on q.id = r.question 
+                    group by q.id
+                    ) as t2
+                on t1.id = t2.id
+            ''').all()
+
             pages_count = ceil(len(questions)/QUESTIONS_PER_PAGE)
-            if page > pages_count:
+
+            if page > pages_count :
                 return make_response(jsonify({
                     "success": False,
                     "message": "resource not found"
                 }), 404)
             questions_paginated = paginate(questions, page, pages_count)
+
             return jsonify({
                 "success": True,
-                "questions": [q.format() for q in questions_paginated],
+                "questions": [{
+                    "id": item[0],
+                    "question": item[1],
+                    "answer": item[2],
+                    "difficulty": item[3],
+                    "category": item[4],
+                    "ownership": item[5],
+                    "rating": item[6],
+                    "avg_rating": item[-1]
+                } for item in questions_paginated],
                 "pages": pages_count
             })
         except:
-            abort(500)
-
+            print(exc_info())
+            abort(404)
 
     # delete question
     @cross_origin
-    @app.route('/questions', methods=['DELETE'])
+    @app.route(F'/api/{API_VERSION}/questions', methods=['DELETE'])
     @token_required
     def delete_question(current_user: User):
         try:
             question_id: int = int(request.get_json()['question_id'])
-            print(question_id)
-            question: Question = Question.query.filter_by(id=question_id).first()
+            question: Question = Question.query.filter_by(
+                id=question_id).first()
             if not question_id or not question or (question.id == 0 and current_user.id != 0):
-                abort(404) 
-            Del = db.engine.execute(F"delete from questions where id={question_id}")
-            print(Del)
+                abort(404)
+            db.engine.execute(
+                F"delete from questions where id={question_id}")
+                
             return jsonify({
                 "success": True,
                 "question": question.format()
@@ -255,7 +284,7 @@ def create_app(test_config=None):
 
     # insert question
     @cross_origin
-    @app.route('/questions', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/questions', methods=['POST'])
     @token_required
     def insert_question(current_user: User):
         try:
@@ -280,28 +309,61 @@ def create_app(test_config=None):
 
     # search questions
     @cross_origin
-    @app.route('/questions/search', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/questions/search', methods=['POST'])
     @token_required
     def search_question(current_user: User):
         try:
-            search_term = request.get_json()['term']
-            questions = Question.query.filter(
-                Question.question.ilike(F"%{search_term}%")).all()
+            search_term: str = request.get_json()['term']
+            questions = db.engine.execute(F'''
+                select *
+                from (
+                    select q.id,
+                    q.question,
+                    q.answer,
+                    q.difficulty,
+                    q.category,
+                    q.ownership,
+                    r.rating
+                    from questions q 
+                    left join ratings r 
+                    on q.id = r.question 
+                    where (q.ownership = 0 or q.ownership = {current_user.id}) 
+                    and (r."user" = {current_user.id} or r."user" is null) 
+                    and q.question like '%{search_term}%'
+                    ) as t1
+                inner join (
+                    select q.id, coalesce(AVG(r.rating), 0)::float as avg_rating
+                    from questions q 
+                    left join ratings r 
+                    on q.id = r.question 
+                    group by q.id
+                    ) as t2
+                on t1.id = t2.id
+            ''').all()
+
             return jsonify({
                 "success": True,
-                "questions": [question.format() for question in questions]
+                "questions": [{
+                    "id": item[0],
+                    "question": item[1],
+                    "answer": item[2],
+                    "difficulty": item[3],
+                    "category": item[4],
+                    "ownership": item[5],
+                    "rating": item[6],
+                    "avg_rating": item[-1]
+                } for item in questions]
             })
         except:
             abort(404)
 
-    # get category questions
+    # get questions of a given category and the medium rating of that question if it is public or private
     @cross_origin
-    @app.route('/category/<int:category_id>', methods=['GET'])
+    @app.route(F'/api/{API_VERSION}/category/<int:category_id>', methods=['GET'])
     @token_required
     def get_question_based_on_category(current_user: User, category_id: int):
         try:
-            page = request.args.get('page', type=int)
-            print(page)
+            page = request.args.get('page', 1, int)
             questions = db.engine.execute(F'''
                 select *
                 from (
@@ -326,17 +388,17 @@ def create_app(test_config=None):
                     ) as t2
                 on t1.id = t2.id
             ''').all()
-            
+
             pages_count = ceil(len(questions)/QUESTIONS_PER_PAGE)
-            
-            if page > pages_count:
+            category: Category = Category.query.get(category_id)
+
+            if page > pages_count or (category is None or not category):
                 return make_response(jsonify({
                     "success": False,
                     "message": "resource not found"
                 }), 404)
             questions_paginated = paginate(questions, page, pages_count)
 
-            category: Category = Category.query.get(category_id)
             return jsonify({
                 "success": True,
                 "category": category.format(),
@@ -356,20 +418,23 @@ def create_app(test_config=None):
             print(exc_info())
             abort(404)
 
-    # get random question
+    # get random question for the quizz
     @cross_origin
-    @app.route('/questions/random', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/questions/random', methods=['POST'])
     @token_required
     def get_random_questions(current_user: User):
         try:
-            category_id: Optional[int] = request.json.get('category')
-            previous_questions: list[int] = list(request.get_json()['previous'])
+            category_id: Optional[int] = request.json.get('category_id')
+            previous_questions: Optional[list] = list(request.json.get('previous'))
 
-            if not category_id:
-                questions = db.session.query(Question).filter(Question.id.not_in(previous_questions)).all()
+            if not category_id or category_id is None:
+                questions = db.session.query(Question).filter(Question.id.not_in(previous_questions)).filter(
+                    db.or_(Question.ownership == 0, Question.ownership == current_user.id)).all()
+                questions_set = [questions[i].format()
+                                 for i in random.sample(range(0, len(questions)), 5)]
                 return jsonify({
                     "success": True,
-                    "questions": [question.format() for question in questions]
+                    "questions": questions_set
                 })
             elif category_id:
                 category = Category.query.get(category_id)
@@ -378,34 +443,63 @@ def create_app(test_config=None):
                         "success": False,
                         "message": "resource not found"
                     }), 404)
-                questions = db.session.query(Question).filter(Question.category == category_id).filter(
-                    Question.id.not_in(previous_questions)).all()
+                questions = db.session.query(Question).filter(Question.id.not_in(previous_questions)).filter(
+                    Question.category == category_id).filter(db.or_(Question.ownership == 0, Question.ownership == current_user.id)).all()
+                questions_set = [questions[i].format()
+                                 for i in random.sample(range(0, len(questions)), 5)]
                 return jsonify({
                     "success": True,
-                    "questions": [question.format() for question in questions],
+                    "questions": questions_set,
                     "category": category_id
                 })
 
         except:
+            print(exc_info())
             abort(400)
 
+    # check question's answer correctness
+    @cross_origin
+    @app.route(F'/api/{API_VERSION}/questions/verify', methods=['POST'])
+    @token_required
+    def check_answer(current_user: User):
+        try:
+            question_id: Optional[int] = request.json.get('question_id')
+            answer: Optional[str] = request.json.get('answer')
+
+            question: Question = Question.query.get(question_id)
+            if not question or question is None:
+                abort(404)
+            if question.answer.lower().strip() == answer.lower().strip():
+                return jsonify({
+                    "correct": True,
+                })
+            else:
+                return jsonify({
+                    "correct": False,
+                })
+        except:
+            print(exc_info())
+            abort(404)
 
     # add or update rating
-
     @cross_origin
-    @app.route('/ratings', methods=['POST'])
+    @app.route(F'/api/{API_VERSION}/ratings', methods=['POST'])
     @token_required
     def update_or_add_rating(current_user: User):
         try:
             score = request.get_json()['rating']
             question_id = request.get_json()['question_id']
-            rating: Rating = Rating.query.filter_by(user = current_user.id).filter_by(question = question_id).first()
+            rating: Rating = Rating.query.filter_by(
+                user=current_user.id).filter_by(question=question_id).first()
             if not rating:
-                new_rating: Rating = Rating(question=question_id, rating=int(score), user=current_user.id)
+                new_rating: Rating = Rating(
+                    question=question_id, rating=int(score), user=current_user.id)
                 new_rating.insert()
+                med = db.engine.execute(F"select coalesce((rating), 0) from ratings where question={question_id}").all()
                 return jsonify({
                     "success": True,
-                    "new_rating": score
+                    "new_rating": score,
+                    "medium": med[0][0]
                 })
             rating.rating = score
             db.session.commit()
@@ -419,13 +513,11 @@ def create_app(test_config=None):
         except:
             print(exc_info())
             abort(404)
-
-
+        finally:
+            db.session.close()
 
     """
-    @TODO:
-    Create error handlers for all expected errors
-    including 404 and 422.
+    error handlers for all expected errors
     """
     @app.errorhandler(404)
     def not_found(error):

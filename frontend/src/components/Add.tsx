@@ -1,9 +1,11 @@
 import { FC, FormEvent, useState, useEffect } from 'react';
 import { addCategory, addQuestion, getCategories, TCategory } from '../utils/fetchDataUtils';
+import useStore from '../zustandStore/store';
 
 
 const Add: FC = () => {
-  const [categories, setCategories] = useState<TCategory[]>([])
+  const categories = useStore(state => state.categories)
+  const setCategories = useStore(state => state.setCategories)
 
   //questions
   const [question, setQuestion] = useState<string>('')
@@ -21,7 +23,7 @@ const Add: FC = () => {
       }).catch(err => {
         console.log(err);
       })
-  }, [])
+  }, [categories])
 
   const insertQuestion = (e: FormEvent) => {
     e.preventDefault()
@@ -48,6 +50,12 @@ const Add: FC = () => {
       addCategory(newCategory).then((res) => {
         alert("Category successfully added ")
         setNewCategory('')
+        getCategories()
+          .then(res => {
+            setCategories(res)
+          }).catch(err => {
+            console.log(err);
+          })
       }).catch(() => {
         alert("Category wasn't added ")
       })

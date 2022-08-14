@@ -5,8 +5,6 @@ const url_path = import.meta.env.VITE_API_URL
 export type TUser = {
     id: number
     username: string
-    wins: number
-    losses: number
 }
 
 type TCredentials = {
@@ -30,7 +28,7 @@ export const LoginFunc = async ({ username, password }: TCredentials): Promise<T
         user: null
     }
     await axios.post(
-        `${url_path}/login`,
+        `${url_path}/signin`,
         {
             username,
             password

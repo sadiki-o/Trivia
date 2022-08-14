@@ -1,104 +1,49 @@
 import { FC, useState, useEffect, MouseEvent } from 'react';
 import { useParams, useNavigate, useSearchParams, Outlet } from 'react-router-dom';
-import StarRatingComponent from 'react-star-rating-component';
-import { getCategories, getQuestions, TQuestion, deleteQuestion, addOrUpdateRating, deleteCategory } from '../utils/fetchDataUtils';
+import { getCategories, getCategoryQuestions, deleteCategory } from '../utils/fetchDataUtils';
 import { TCategory } from '../utils/fetchDataUtils';
+import useStore from '../zustandStore/store';
 import Pagination from './Pagination';
+import QuestionCard from './QuestionCard';
 
 
 // clickable category link
-const CategoryLink = ({ category, currentCategory }: { category: TCategory, currentCategory: number }) => {
+const CategoryLink = ({ category, currentCategory }: { category: TCategory, currentCategory: number, setCategories: Function, categories: TCategory[] }) => {
   const navigate = useNavigate()
+  const [categories, setCategories, user] = useStore(state => [state.categories, state.setCategories, state.user])
 
   const DeleteCategory = (e: MouseEvent<HTMLSpanElement>) => {
     e.preventDefault()
-    deleteCategory(category.id!)
-    .then((res) => {
-      alert("sucess")
-      navigate('/categories')
-    })
+    if (window.confirm("Are you sure you want to delete this question?")) {
+      deleteCategory(category.id!)
+        .then((res) => {
+          alert("sucess")
+          navigate('/list/categories')
+          setCategories([...categories.filter(cat => cat.id !== category.id)])
+        })
+    }
+
   }
 
   return (
-    <div className={`flex ${category.ownership ? 'justify-between' : 'justify-start'}`}>
+    <div className={`flex ${category.ownership !== null ? 'justify-between' : 'justify-start'}`}>
       <li onClick={(e) => {
         e.preventDefault()
-        navigate('/categories/' + category.id)
+        navigate('/list/categories/' + category.id)
       }}
         key={category.id} className={`list-none hover:cursor-pointer pl-2 text-center md:text-left font-mono ${currentCategory === category.id ? 'text-blue-500' : ''}`}> {category.type}
       </li>
-      {category.ownership ? <span onClick={DeleteCategory} className='text-red-600 hover:cursor-pointer font-bold'>X</span> : ''}
+      {(category.ownership == 0 && user?.id == 0) || (category.ownership) ? <span onClick={DeleteCategory} className='text-red-600 hover:cursor-pointer font-bold'>X</span> : ''}
     </div>
 
   )
 }
 
 
-// question cards
-const QuestionCard = ({ question, removeQuestion }: { question: TQuestion, removeQuestion: Function }) => {
-  const [answerVisiblity, setAnswerVisibilty] = useState(false)
-  const [mediumRating, setMediumRating] = useState<number>(1)
-  const [individualRating, setIndividualRating] = useState<number>()
-
-  useEffect(() => {
-    setMediumRating(question.avg_rating!)
-    question.rating ? setIndividualRating(question.rating) : setIndividualRating(0)
-  }, [])
-
-  const DeleteQuestion = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
-    if (window.confirm("Are you sure you want to delete this question?")) {
-      deleteQuestion(question.id!)
-        .then((res) => {
-          alert("successfully deleted")
-          removeQuestion(question.id)
-        })
-        .catch(() => {
-          alert("unseccussful delete!")
-        })
-    }
-  }
-
-  const sendNewRating = (prev: number, next: number) => {
-    addOrUpdateRating(question.id!, next)
-      .then((res) => {
-        alert('Updated')
-        setIndividualRating(next)
-        setMediumRating(res.medium)
-      })
-      .catch(() => {
-        setIndividualRating(prev)
-      })
-  }
-
-  return (
-    <div className='border-purple-600 border-[3px] w-[90%] mb-1 rounded p-1 mx-auto relative'>
-      <p className='inline-block bg-green-400 h-7 px-1 w-fit absolute top-0 right-0 font-medium'>{mediumRating} ⭐</p>
-      <p className='text-gray-500'>question:</p>
-      {question.question}
-      <p className='text-gray-500'>difficulty: <span className='font-bold text-black'>{question.difficulty}</span></p>
-
-      <button onClick={() => setAnswerVisibilty(!answerVisiblity)} className='bg-blue-600 hover:bg-blue-500 text-white font-bold p-2 rounded'>{answerVisiblity ? 'Hide' : 'Show'} Answer  <span className={`text-gray-900 font-bold ${answerVisiblity ? 'visible' : 'hidden'}`}>{question.answer}</span></button>
-
-      {question.ownership !== 0 ? <button onClick={DeleteQuestion} className='inline-block bg-red-500 p-2 w-fit absolute bottom-0 right-0 text-white font-medium'>Delete</button> : ''}
-      <div className='flex justify-center text-2xl'>
-        <StarRatingComponent
-          name="rating"
-          starCount={5}
-          value={individualRating!}
-          onStarClick={(prevValue, nextValue) => {
-            setIndividualRating(nextValue)
-            sendNewRating(nextValue, prevValue)
-          }}
-        />
-      </div>
-    </div>
-  )
-}
 
 
 export const QuestionsDisplay = () => {
-  const [questions, setQuestions] = useState<TQuestion[]>([])
+  const [questions, setQuestions] = useStore(state => [state.questions, state.setQuestions])
   const [pagesCount, setPagesCount] = useState(0)
   const [searchParams] = useSearchParams();
 
@@ -109,7 +54,7 @@ export const QuestionsDisplay = () => {
   }
 
   useEffect(() => {
-    params.categoryid ? getQuestions(parseInt(params.categoryid!), parseInt(searchParams.get('page')!))
+    params.categoryid ? getCategoryQuestions(parseInt(params.categoryid!), parseInt(searchParams.get('page')!))
       .then(res => {
         setQuestions(res.questions)
         setPagesCount(res.pagesCount)
@@ -123,19 +68,18 @@ export const QuestionsDisplay = () => {
     <>
       {questions.length === 0 ? <div className='flex items-center justify-center'><span>No questions available in this category</span></div> : params.categoryid ? questions.map(el => <QuestionCard removeQuestion={removeQuestion} question={el} key={el.id} />) : <div className='flex items-center justify-center'><span>Choose a category</span></div>}
 
-      <Pagination count={pagesCount} currentCategory={parseInt(params.categoryid!)} />
+      <Pagination count={pagesCount} url={`/list/categories/${parseInt(params.categoryid!)}`} />
     </>
   )
 }
 
 const Home: FC = () => {
-  const [categories, setCategories] = useState<TCategory[]>([])
+  const [categories, setCategories] = useStore(state => [state.categories, state.setCategories])
   const [searchCategory, setSearchCategory] = useState('')
 
   let params = useParams();
 
   useEffect(() => {
-
     getCategories()
       .then(res => {
         setCategories(res)
@@ -154,7 +98,7 @@ const Home: FC = () => {
     <div className="h-fit flex flex-col md:flex-row">
       <div className="w-full md:w-[30%] mt-10 md:mt-0 p-2">
         <h3 className='text-center text-blue-600 text-lg mb-3 font-bold'>Categories</h3>
-        {categories.filter(el => el.type.toLowerCase().includes(searchCategory.toLocaleLowerCase())).map((el) => <CategoryLink key={el.id} category={el} currentCategory={parseInt(params.categoryid!)} />)}
+        {categories.filter(el => el.type.toLowerCase().includes(searchCategory.toLocaleLowerCase())).map((el) => <CategoryLink key={el.id} category={el} currentCategory={parseInt(params.categoryid!)} setCategories={setCategories} categories={categories} />)}
 
         <div className='flex flex-col items-center'>
           <p className='text-slate-700 pt-2'>search category:</p>

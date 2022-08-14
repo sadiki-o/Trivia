@@ -1,18 +1,34 @@
-# Backend - Trivia API
+# Backend - Quizzio API
 
 ## Setting up the Backend
 
 ### Install Dependencies
 
-1. **Python 3.7** - Follow instructions to install the latest version of python for your platform in the [python docs](https://docs.python.org/3/using/unix.html#getting-and-installing-the-latest-version-of-python)
-
+1. **Python 3.x** - Follow instructions to install the latest version of python for your platform in the [python docs](https://docs.python.org/3/using/unix.html#getting-and-installing-the-latest-version-of-python)
 2. **Virtual Environment** - We recommend working within a virtual environment whenever using Python for projects. This keeps your dependencies for each project separate and organized. Instructions for setting up a virual environment for your platform can be found in the [python docs](https://packaging.python.org/guides/installing-using-pip-and-virtual-environments/)
+3. **PIP Dependencies** - Once your virtual environment is setup and running, install the required dependencies .
 
-3. **PIP Dependencies** - Once your virtual environment is setup and running, install the required dependencies by navigating to the `/backend` directory and running:
+### Project Setup
+
+To get started navigate to the `/backend` directory and run:
+
+```bash
+cd backend
+```
+
+```bash
+python -m venv env
+```
+
+```bash
+source env/bin/activate
+```
 
 ```bash
 pip install -r requirements.txt
 ```
+
+
 
 #### Key Pip Dependencies
 
@@ -24,23 +40,45 @@ pip install -r requirements.txt
 
 ### Set up the Database
 
-With Postgres running, create a `trivia` database:
+With Postgresql running, create a `trivia` database:
 
 ```bash
 createbd trivia
 ```
 
-Populate the database using the `trivia.psql` file provided. From the `backend` folder in terminal run:
+*Note* : in the backend directory you will find a .env file containing database credentials and website url and PORT, change them according to your database and server configuration before proceeding.
 
-```bash
-psql trivia < trivia.psql
+### Project Structure
+
 ```
+backend
+│   .env
+|	app.py
+│	db.py
+|	models.py
+|	requirements.txt
+|	settings.py
+|	test_flaskr.py
+└───migrations
+    │___versions
+        |
+		|___7ec16e3a97a1_.py
+		|___d18ea280b54d_.py
+```
+
+*Note :* the migrations folder holds two migrations, one for the models and one revision for configuring and populating data in the DB, you don't have to run `flask db migrate`   and `flask db upgrade`
+
+
 
 ### Run the Server
 
 From within the `./src` directory first ensure you are working using your created virtual environment.
 
-To run the server, execute:
+To run the server make sure you are inside the virtual environment and execute:
+
+```bash
+export FLASK_APP=app.py
+```
 
 ```bash
 flask run --reload
@@ -48,57 +86,100 @@ flask run --reload
 
 The `--reload` flag will detect file changes and restart the server automatically.
 
-## To Do Tasks
+## API Endpoints Docs
 
-These are the files you'd want to edit in the backend:
+Here is a list of endpoints and their expected results:
 
-1. `backend/flaskr/__init__.py`
-2. `backend/test_flaskr.py`
+*send and verify token and return a user object :*
 
-One note before you delve into your tasks: for each endpoint, you are expected to define the endpoint and response data. The frontend will be a plentiful resource because it is set up to expect certain endpoints and response data formats already. You should feel free to specify endpoints in your own way; if you do so, make sure to update the frontend or you will get some unexpected behavior.
+```
+POST '/api/v1.0/verify'
+```
 
-1. Use Flask-CORS to enable cross-domain requests and set response headers.
-2. Create an endpoint to handle `GET` requests for questions, including pagination (every 10 questions). This endpoint should return a list of questions, number of total questions, current category, categories.
-3. Create an endpoint to handle `GET` requests for all available categories.
-4. Create an endpoint to `DELETE` a question using a question `ID`.
-5. Create an endpoint to `POST` a new question, which will require the question and answer text, category, and difficulty score.
-6. Create a `POST` endpoint to get questions based on category.
-7. Create a `POST` endpoint to get questions based on a search term. It should return any questions for whom the search term is a substring of the question.
-8. Create a `POST` endpoint to get questions to play the quiz. This endpoint should take a category and previous question parameters and return a random questions within the given category, if provided, and that is not one of the previous questions.
-9. Create error handlers for all expected errors including 400, 404, 422, and 500.
+*signup a new user by providing a <u>username</u> & <u>password</u>, return success if doesn't exist and already exist if the user already exist*
 
-## Documenting your Endpoints
+```
+POST '/api/v1.0/singup'
+```
 
-You will need to provide detailed documentation of your API endpoints including the URL, request parameters, and the response body. Use the example below as a reference.
+*signin a user by providing a <u>username</u> and <u>password</u> , return a JWT token if successful*
 
-### Documentation Example
+```
+POST '/api/v1.0/signin'
+```
 
-`GET '/api/v1.0/categories'`
+**the endpoints down bellow all require you to include an 'x-access-token' in order to access the ressource**
 
-- Fetches a dictionary of categories in which the keys are the ids and the value is the corresponding string of the category
-- Request Arguments: None
-- Returns: An object with a single key, `categories`, that contains an object of `id: category_string` key: value pairs.
+*get all categories of the current_user or the admin*
 
-```json
-{
-  "1": "Science",
-  "2": "Art",
-  "3": "Geography",
-  "4": "History",
-  "5": "Entertainment",
-  "6": "Sports"
-}
+```
+GET '/api/v1.0/categories'
+```
+
+*insert a new category owned by the current_user*
+
+```
+POST '/api/v1.0/categories'
+```
+
+*delete category owned by the current_user by providing a <u>category_id</u>*
+
+```
+DELETE '/api/v1.0/categories'
+```
+
+*get all questions owned by the user or the admin in a paginated way, avg_rating per question, user rating of the questions as well as the number of 8 questions set defined in <u>QUESTIONS_PER_PAGE</u> variable, you can include page as a search query (optional) otherwise page will be set to 1*
+
+```
+GET '/api/v1.0/questions?page=2'
+```
+
+*insert new question owned by the user*
+
+```
+POST '/api/v1.0/questions
+```
+
+*delete question owned by the user by providing a <u>question_id</u>*
+
+```
+DELETE '/api/v1.0/questions
+```
+
+*search questions by providing a search term and return a set of questions that match the search*
+
+```
+POST '/api/v1.0/questions/search
+```
+
+*get questions of a given category and the medium rating of each question and the number of 8 questions set defined in <u>QUESTIONS_PER_PAGE</u> variable, you can include page as a search query (optional) otherwise page will be set to 1*
+
+```
+POST '/api/v1.0/questions/random
+```
+
+*check question's answer correctness, by providing a <u>question_id</u> and <u>answer</u> to the question and return true or false*
+
+```
+POST '/api/v1.0/questions/verify
+```
+
+*add or update a questions's rating, by providing a <u>rating</u> and <u>question_id</u>*
+
+```
+POST '/api/v1.0/ratings
+```
+
+*get 5 random questions for the quizz, by providing a category_id(optional) and an array of previous_questions(optional) to make sure the client receive a new set of questions different than the previous one*
+
+```
+POST '/api/v1.0/category/<int:category_id>?page=2
 ```
 
 ## Testing
 
-Write at least one test for the success and at least one error behavior of each endpoint using the unittest library.
-
-To deploy the tests, run
+To run the tests, execute the following after setting up the <u>Database</u> and the <u>Server</u>
 
 ```bash
-dropdb trivia_test
-createdb trivia_test
-psql trivia_test < trivia.psql
 python test_flaskr.py
 ```

@@ -13,6 +13,8 @@ import Spinner from './components/Spinner';
 import NavBar from './components/NavBar';
 import Add from './components/Add';
 import Main from './components/Main';
+import List from './components/List';
+import AllQuestions from './components/AllQuestions';
 
 
 const App: FC = () => {
@@ -51,8 +53,11 @@ const App: FC = () => {
       <Routes>
         <Route path='/' element={<Main />}/>
         <Route element={<PrivateRoute />}>
-          <Route path='categories' element={<Home />}>
-            <Route path=':categoryid' element={<QuestionsDisplay />}/>
+          <Route path='list' element={<List />}>
+            <Route path='categories' element={<Home />}>
+              <Route path=':categoryid' element={<QuestionsDisplay />}/>
+            </Route>
+            <Route path='questions' element={<AllQuestions />}/>
           </Route>
           <Route path="add" element={<Add />} />
           <Route path="play" element={<Play />} >

@@ -1,8 +1,8 @@
 """empty message
 
-Revision ID: 2b596dd0afab
-Revises: 920c9566c1a7
-Create Date: 2022-08-08 14:35:01.063824
+Revision ID: d18ea280b54d
+Revises: 7ec16e3a97a1
+Create Date: 2022-08-12 23:56:09.982038
 
 """
 
@@ -11,18 +11,19 @@ from sqlalchemy import DDL, event
 
 
 # revision identifiers, used by Alembic.
-revision = '2b596dd0afab'
-down_revision = '920c9566c1a7'
+revision = 'd18ea280b54d'
+down_revision = '7ec16e3a97a1'
 branch_labels = None
 depends_on = None
+
 
 
 def upgrade():
     #code responsible for handling artists availability when creating a show
     conn = op.get_bind()
     availability_trigger = DDL('''
-        insert into public.users (id, username, password, public_id, created_at, wins, losses) values
-        (0, 'admin', '$2b$12$Sxvyp9805g/yXCJTTNl64uTGcB3cAdid/gNsw782cmbrwPqnL4HvO', 'dbe03fa7-b080-4ef4-8c81-30bdb330a4f1', now(), 0, 0);
+        insert into public.users (id, username, password, public_id, created_at) values
+        (0, 'admin', 'sha256$84u6xjShWh31CoHc$a0d5abed22ee8668971f2f53bd6ee950e456bf9069ee2502e1819b2d82394052', 'dbe03fa7-b080-4ef4-8c81-30bdb330a4f1', now());
     
         insert into public.categories (id, type, ownership) values
         (1, 'Science', 0),
@@ -53,7 +54,20 @@ def upgrade():
         (20, 'What is the heaviest organ in the human body?', 'The Liver', 4, 1, 0),
         (21, 'Who discovered penicillin?', 'Alexander Fleming', 3, 1, 0),
         (22, 'Hematology is a branch of medicine involving the study of what?', 'Blood', 4, 1, 0),
-        (23, 'Which dung beetle was worshipped by the ancient Egyptians?', 'Scarab', 4, 4, 0);
+        (23, 'Which dung beetle was worshipped by the ancient Egyptians?', 'Scarab', 4, 4, 0),
+        (24, 'What was the name of the first artificial Earth satellite?', 'Sputnik 1', 3, 1, 0),
+        (25, 'How many objects are equivalent to one mole?', '6.022 x 10^23', 5, 1, 0),
+        (26, 'Painter Piet Mondrian (1872 - 1944) was a part of what movement?', 'Neoplasticism', 3, 2, 0),
+        (27, 'What is the capital of Denmark?', 'Copenhagen', 2, 3, 0),
+        (28, 'Alaska is the largest state in the United States, true or false?', 'true', 2, 3, 0),
+        (29, 'What is the last name of Edward and Alphonse in the Fullmetal Alchemist series?', 'Elric', 3, 4, 0),
+        (30, 'Who played the sun baby in the original run of Teletubbies?', 'Jessica Smith', 4, 5, 0),
+        (31, 'In season one of the US Kitchen Nightmares, Gordan Ramsay tried to save 10 different restaurants. How many ended up closing afterwards?', '9', 3, 5, 0),
+        (32, 'Which team won the 2015-16 English Premier League?', 'Leicester City', 4, 6, 0),
+        (33, 'Rocket League is a game which features..?', 'cars', 4, 6, 0),
+        (34, 'Which European capital city gives its name to a 1981 song by Ultravox?', 'Vienna', 3, 6, 0),
+        (35, 'What disease did sailors use to contract because of lack of Vitamin C?', 'Scurvy', 4, 1, 0)
+        ;
 
         SELECT setval('questions_id_seq', (SELECT MAX(id) FROM questions));
         ''')

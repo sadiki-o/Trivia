@@ -12,7 +12,7 @@ interface TLink {
 
 const NavLink: FC<TLink> = ({ name, url, auth }) => {
   return (
-    <Link to={url} className={`font-bold text-lg h-8 rounded px-2 md:px-7 ${!auth ? 'bg-black text-white-200 ' : 'text-red-200'} md:text-xl hover:cursor-pointer hover:bg-gray-900`}>
+    <Link to={url} className={`font-bold text-lg h-8 rounded px-2 md:px-3 ${!auth ? 'bg-black text-white-200 ' : 'text-red-200'} md:text-xl hover:cursor-pointer hover:bg-gray-900`}>
       {name}
     </Link>
   )
@@ -41,7 +41,7 @@ const NavBar: FC = () => {
         { auth 
         ? (
           <>
-            {[["List", "/categories"], ["Add", "/add"], ["Play", "/play"]].map((el, index) => <NavLink auth key={index} name={el[0]} url={el[1]} />)}
+            {[["List", "/list/categories"], ["Add", "/add"], ["Play", "/play"]].map((el, index) => <NavLink auth key={index} name={el[0]} url={el[1]} />)}
             <button onClick={LogOut} className='bg-red-500 hover:bg-red-600 text-slate-100 p-1 rounded font-extrabold'>Logout</button>
           </>
         )

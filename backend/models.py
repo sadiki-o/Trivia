@@ -14,7 +14,7 @@ class Category(db.Model):
 
     id = Column(Integer, primary_key=True)
     type = Column(String)
-    ownership = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), default='0')
+    ownership = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), default='0', nullable=False)
 
     user = db.relationship(
         'User', primaryjoin='Category.ownership == User.id', backref='categories')
@@ -51,8 +51,8 @@ class Question(db.Model):
     question = Column(String)
     answer = Column(String)
     difficulty = Column(Integer)
-    category = Column(Integer, ForeignKey('categories.id', ondelete='CASCADE'))
-    ownership = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), default=0)
+    category = Column(Integer, ForeignKey('categories.id', ondelete='CASCADE'), nullable=False)
+    ownership = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), default=0, nullable=False)
 
     category1 = db.relationship(
         'Category', primaryjoin='Question.category == Category.id', backref='questions')
@@ -92,9 +92,9 @@ class Rating(db.Model):
     __tablename__ = 'ratings'
 
     question = Column(Integer, ForeignKey(
-        'questions.id', ondelete="CASCADE"), primary_key=True)
+        'questions.id', ondelete="CASCADE"), primary_key=True, nullable=False)
     user = Column(Integer, ForeignKey(
-        'users.id', ondelete="CASCADE"), primary_key=True)
+        'users.id', ondelete="CASCADE"), primary_key=True, nullable=False)
     rating = Column(Integer)
 
     question_ = db.relationship(
@@ -135,8 +135,6 @@ class User(db.Model):
     password = Column(String, nullable=False)
     public_id = db.Column(UUID(as_uuid=True), nullable=False)
     created_at = Column(DateTime, default=str(datetime.now()))
-    wins = Column(Integer, default=0)
-    losses = Column(Integer, default=0)
 
 
     def __init__(self, username, password, public_id):
@@ -148,6 +146,4 @@ class User(db.Model):
         return {
             'id': self.id,
             'username': self.username,
-            'wins': self.wins,
-            'losses': self.losses
         }
